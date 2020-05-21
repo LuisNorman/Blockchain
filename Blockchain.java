@@ -4,12 +4,10 @@ import java.io.*;
 import java.net.*;
 import java.util.concurrent.*;
 
-
 import java.io.StringWriter;
 import java.io.StringReader;
 
 /* CDE: Encryption libraries that are needed to sign the hash: */
-
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
@@ -25,16 +23,18 @@ import java.security.*;
 
 // Produces a 64-bye string representing 256 bits of the hash output. 4 bits per character
 import java.security.MessageDigest; // To produce the SHA-256 hash.
-
+import java.nio.charset.StandardCharsets; // To produce utf_8 bytes array
 
 /* CDE: More helpful uitilities: */
-
 import java.util.Date;
 import java.util.Random;
 import java.util.UUID;
 import java.text.*;
 import java.util.Base64;
 import java.util.Arrays;
+
+import java.math.BigInteger;
+import java.lang.Math;
 
 
 // Libraries needed to generate JSON 
@@ -47,9 +47,9 @@ import java.io.IOException;
 import java.io.FileReader;
 import java.io.Reader;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+// https://www.javatpoint.com/java-get-current-date
+import java.time.format.DateTimeFormatter;  
+import java.time.LocalDateTime;    
 
 /* We will produce something like the following BlockRecord.json file. You will marshall this record over a socket:
 {
@@ -167,8 +167,6 @@ class BlockInput{
 	    int UnverifiedBlockPort;
 	    int BlockChainPort;
 
-		/* CDE If you want to trigger bragging rights functionality... */
-
 		// Determine the process number
 		pnum = Blockchain.PID;
 		UnverifiedBlockPort = 4710 + pnum;
@@ -210,11 +208,11 @@ class BlockInput{
 					String TimeStampString = T1 + "." + pnum; // No timestamp collisions!
 					System.out.println("Timestamp: " + TimeStampString);
 					BR.setTimeStamp(TimeStampString); // Stamp the new block with the time so we can sort by time
-
 		
 					/* CDE: Generate a unique blockID. This would also be signed by creating process: */
 					suuid = new String(UUID.randomUUID().toString());
 					BR.setBlockID(suuid);
+
 					/* Insert the file information in the block record so we can insert it into a linkedlist */
 					tokens = InputLineStr.split(" +"); // Tokenize the input 
 					BR.setFname(tokens[iFNAME]);
@@ -224,61 +222,17 @@ class BlockInput{
 					BR.setDiag(tokens[iDIAG]);
 					BR.setTreat(tokens[iTREAT]);
 					BR.setRx(tokens[iRX]);
-
+					
 					recordList.add(BR); // Add the newly created block record to the linked list
 					n++;
 	      	}
-	      	// System.out.println(n + " records read." + "\n");
-	      	// System.out.println("Records in the linked list:");
-
-	  //     	// Display the records the were just inserted into the records list
-	  //     	Iterator<BlockRecord> iterator = recordList.iterator();
-	  //     	while(iterator.hasNext()){
-	  //     		tempRec = iterator.next();
-			// 	System.out.println(tempRec.getTimeStamp() + " " + tempRec.getFname() + " " + tempRec.getLname());
-	  //     	} 
-	  //     	System.out.println("");
-	      
-	  //     	iterator=recordList.iterator();
-	  //     	System.out.println("The shuffled list:"); // Prove that the list is not sorted
-	  //     	Collections.shuffle(recordList);
-	  //     	while(iterator.hasNext()){
-			// 	tempRec = iterator.next();
-			// 	System.out.println(tempRec.getTimeStamp() + " " + tempRec.getFname() + " " + tempRec.getLname());
-			// } 
-	  //     	System.out.println("");
-
-	  //     	// Add the items in the list into a priority queue sorted by time
-	  //     	iterator=recordList.iterator();
-	  //     	System.out.println("Placing shuffled records in our priority queue...\n");
-	  //     	while(iterator.hasNext()){
-			// 	ourPriorityQueue.add(iterator.next());
-	  //     	} 
-	      
-	  //     	System.out.println("Priority Queue (restored) Order:");
-
-	   //    	while(true){ // Queue will be in TimeStamp order. (In this case, the original order.)
-				// // Can't iterate here. poll() removes and returns the head of the queue.
-				// tempRec = ourPriorityQueue.poll(); // For consumer thread you'll want .take() which blocks while waiting.
-				// if (tempRec == null) break;
-				// System.out.println(tempRec.getTimeStamp() + " " + tempRec.getFname() + " " + tempRec.getLname());
-	   //    	} 
 	      	System.out.println("\n\n");
 
 	    } catch (Exception e) {e.printStackTrace();}
 
-	    Gson gson = new GsonBuilder().setPrettyPrinting().create();
-	    
 	    // Convert the Java object to a JSON String:
+	    Gson gson = new GsonBuilder().setPrettyPrinting().create();
 	    String json = gson.toJson(recordList);
-	    
-	    System.out.println("\nJSON (shuffled) String list is: " + json);
-	    
-	    //Write the JSON object to a file:
-	    String filename = "myList"+Blockchain.PID+".json";
-	    try (FileWriter writer = new FileWriter(filename)) {
-	      	gson.toJson(recordList, writer);
-	    } catch (IOException e) {e.printStackTrace();}
 
 	    return json;
 	}
@@ -296,9 +250,9 @@ class Ports{
 
 	// Method to set the ports according to our rules
 	public void setPorts(){
-	KeyServerPort = KeyServerPortBase + Blockchain.PID;
-	UnverifiedBlockServerPort = UnverifiedBlockServerPortBase + Blockchain.PID;
-	BlockchainServerPort = BlockchainServerPortBase + Blockchain.PID;
+		KeyServerPort = KeyServerPortBase + Blockchain.PID;
+		UnverifiedBlockServerPort = UnverifiedBlockServerPortBase + Blockchain.PID;
+		BlockchainServerPort = BlockchainServerPortBase + Blockchain.PID;
 	}
 }
 
@@ -321,8 +275,8 @@ class PublicKeyWorker extends Thread {
 
 // Public key server to listen for incoming connection sending their public key 
 class PublicKeyServer implements Runnable {
-  //public ProcessBlock[] PBlock = new ProcessBlock[3]; // One block to store info for each process.
-    
+
+	// Listen and accept incoming connection the public key server
     public void run(){
     	int q_len = 6;
     	Socket sock;
@@ -337,7 +291,7 @@ class PublicKeyServer implements Runnable {
 	}
 }
 
-// Unverified block server to listen for incoming connection requesting to add to unvierified block
+// Unverified block server: Listens for incoming connections to add to unverified block
 class UnverifiedBlockServer implements Runnable {
 	PriorityBlockingQueue<BlockRecord> queue;
 
@@ -357,6 +311,8 @@ class UnverifiedBlockServer implements Runnable {
     	
     	public void run() {
       		try {
+
+      			/* Read in the unverified blocks array and add it to the queue */
 				BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
 				String incomingBlocks = in.readLine();
 				String data = "";
@@ -364,34 +320,22 @@ class UnverifiedBlockServer implements Runnable {
 					data += incomingBlocks;
 					incomingBlocks = in.readLine();
 				}
-				String prepend = "{\"BlockRecords\" : "; // Prepend this so later I can parse this as an object and the records as an array. Allows me to see how many records there are 
-				String append = "}"; // Complete the format
-				String formattedJson = prepend + data + append; // Generate the json string with additional formatting
-				final JSONObject obj = new JSONObject(formattedJson); // Convert json string to object for simpler retrieval
-		    	final JSONArray blockRecords = obj.getJSONArray("BlockRecords"); // Get the block records
-		    	final int n = blockRecords.length(); // Compute how many block records there are
-		    	for (int i = 0; i < n; ++i) { // Loop block records json array, create a block record from each block record json object, and insert it into queue
-		      		final JSONObject blockRecord = blockRecords.getJSONObject(i); // Get the current block record
-					// Convert the current block record from json to java object
-					BlockRecord BR = new BlockRecord();
-					BR.setBlockID(blockRecord.getString("BlockID"));
-					BR.setFname(blockRecord.getString("Fname"));
-					BR.setLname(blockRecord.getString("Lname"));
-					BR.setSSNum(blockRecord.getString("SSNum"));
-					BR.setDOB(blockRecord.getString("DOB"));
-					BR.setDiag(blockRecord.getString("Diag"));
-					BR.setTreat(blockRecord.getString("Treat"));
-					BR.setRx(blockRecord.getString("Rx"));
-					BR.setTimeStamp(blockRecord.getString("TimeStamp"));
 
-					System.out.println("Put in priority queue: " + data + "\n"); 
-					queue.put(BR); // Put block record in priority queue (wait until there is space if full or free if busy)
+				// Convert the marshaled json array to a block records array
+		    	Gson gson = new Gson();
+		    	BlockRecord[] arr = gson.fromJson(data, BlockRecord[].class);
+
+		    	// Put each block in the block array in the unverified queue
+		    	for (int i = 0; i < arr.length; i++) { // Loop block records json array, create a block record from each block record json object, and insert it into queue
+					System.out.println("Put in priority queue: " + arr[i].toString() + "\n"); 
+					queue.put(arr[i]); // Put block record in priority queue (wait until there is space if full or free if busy)
 			    }
-				sock.close(); 
+				sock.close(); // close socket connection
       		} catch (Exception x){x.printStackTrace();}
     	}
   	}
   
+  	// Listen and accept connections to the unverified block server
   	public void run(){
     	int q_len = 6; /* The amount of simultaneous connections allowed */
     	Socket sock;
@@ -417,9 +361,38 @@ class UnverifiedBlockConsumer implements Runnable {
     	this.queue = queue; // Make the queue publicly accessible.
   	}
 
+  	private static String bytesToHex(byte[] hash) {
+    	StringBuffer hexString = new StringBuffer();
+    	for (int i = 0; i < hash.length; i++) {
+    		String hex = Integer.toHexString(0xff & hash[i]);
+    		if(hex.length() == 1) hexString.append('0');
+        		hexString.append(hex);
+    	}
+    	return hexString.toString();
+	}
+
+	private static Boolean isWinningHash(String hash) {
+		String hexLine = "0123456789ABCDEF";
+		int decimal = 0;
+		for (int i=0; i<hash.length(); i++) {
+			char current_char = hash.charAt(i);
+			int addition = hexLine.indexOf(current_char);
+			decimal += 16 * decimal + addition;
+			if (decimal < 10000)
+				return false;
+			System.out.println("\n\n\n\n\n\nWINNER: " + Blockchain.PID);
+		}
+		return true;
+
+	}
+
+	public static void ceaseWork() {
+		// Find a way to stop the work as soon as someone adds it to the bc
+	}
+
   	// Continuously loop and remove unverified blocks from the queue and multicast the new blockchain if solved
   	public void run(){
-	    BlockRecord blockRecord;
+	    BlockRecord blockRecord = null;
 	    PrintStream toServer;
 	    Socket sock;
 	    String newblockchain;
@@ -444,7 +417,34 @@ class UnverifiedBlockConsumer implements Runnable {
 	    System.out.println("Starting the Unverified Block Priority Queue Consumer thread.\n");
     	try{
       		while(true){ // Consume from the incoming queue. Do the work to verify. Mulitcast new blockchain
-				blockRecord = queue.take(); // Remove oldiest block record from queue (wait for the next item if the queue is empty)
+
+				
+
+				// Set the current block record's previous hash by getting the current blockchain, extracting the last added block, and the winning hash value
+				String json = "[" + Blockchain.blockchain + "]";
+				Gson gson2 = new Gson();
+		    	BlockRecord[] arr = gson2.fromJson(json, BlockRecord[].class);
+				
+		    	// Finds the first block record that isn't in the blockchain. Avoids solving the block and then finding out later it was added to the ledger
+				Boolean findNewBlock = true;
+				while (findNewBlock) {
+      				blockRecord = queue.take(); // Remove oldiest block record from queue (wait for the next item if the queue is empty)
+      				for (int i=0; i<arr.length; i++) {
+      					if (blockRecord.getBlockID() == arr[i].getBlockID()) { // check to see if block id has already been solved
+      						blockRecord = queue.take(); // get another block record from the queue and see if that has been solved now
+      						findNewBlock = true;
+      						break;
+      					}
+      					else if (i==arr.length-1) { // we checked the entire list, now we have found next new block to work on
+      						findNewBlock = false;
+      						break;
+      					}
+      				}
+      				
+      			}
+
+      			blockRecord.setPreviousHash(arr[0].getWinningHash()); // Set the previous hash of this block
+
 				System.out.println("Consumer got unverified: " + blockRecord.toString());
 				Fname = blockRecord.getFname();
 				Lname = blockRecord.getLname();
@@ -453,24 +453,55 @@ class UnverifiedBlockConsumer implements Runnable {
 				Diag = blockRecord.getDiag();
 				Treat = blockRecord.getTreat();
 				Rx = blockRecord.getRx();
+				BlockID = blockRecord.getBlockID();
 
-				/// MARSHAL IT TO BLOCKCHAIN SERVER AS JSON
+
+				/* https://www.baeldung.com/sha-256-hashing-java */
+				MessageDigest digest = MessageDigest.getInstance("SHA-256");
+				String randomSeed = "";
+				String sha256 = "";
+				String previousHash = blockRecord.getPreviousHash();
+				for(int i=0; i < 100; i++){ // add time constraint on how long the puzzle can take at max
+					int randomSeedInt = ThreadLocalRandom.current().nextInt(0,81); // Create random seed int
+					randomSeed = String.valueOf(randomSeedInt); // Convert it to string
+					String blockData = Fname+Lname+SSNum+DOB+BlockID;
+					String guess = previousHash + blockData + randomSeed;
+					byte[] encodedhash = digest.digest(guess.getBytes(StandardCharsets.UTF_8));
+					sha256 = bytesToHex(encodedhash);
+					String hash = sha256.substring(sha256.length()-16);
+					// try{Thread.sleep(100);}catch(Exception e){e.printStackTrace();}
+					// if (isWinningHash(hash)) { // Call custom function to see if winning hash
+					// 	System.out.println("Solved work - Now see if someone already solved it...");
+					// 	break;
+					// }
+				}
 
 				// Ordindarily we would do real work here, based on the incoming data.
 				int j; // Here we fake doing some work (That is, here we could cheat, so not ACTUAL work...)
-				for(int i=0; i< 100; i++){ // put a limit on the fake work for this example
+				for(int i=0; i< 100; i++){ // add time constraint on how long the puzzle can take at max
 					j = ThreadLocalRandom.current().nextInt(0,10);
 					try{Thread.sleep(500);}catch(Exception e){e.printStackTrace();}
 					if (j < 3) break; // <- how hard our fake work is; about 1.5 seconds.
 				}	
 	
-			/* With duplicate blocks that have been verified by different procs ordinarily we would keep only the one with
-          	 the lowest verification timestamp. For the exmple we use a crude filter, which also may let some dups through */
-				if(Blockchain.blockchain.indexOf(blockRecord.toString().substring(1, 50)) < 0){ // Crude, but excludes most duplicates. 
-				  	fakeVerifiedBlock = "[" + blockRecord + " verified by P" + Blockchain.PID + " at time " 
-				    + Integer.toString(ThreadLocalRandom.current().nextInt(100,1000)) + "]\n";
-				    System.out.println(fakeVerifiedBlock);
-				  	String tempblockchain = fakeVerifiedBlock + Blockchain.blockchain; // add the verified block to the chain
+				if(Blockchain.blockchain.indexOf(BlockID) < 0){ // Check if the block id has been inserted in the blockchain already
+
+
+					blockRecord.setRandomSeed(randomSeed); // Set the block's random string
+					blockRecord.setWinningHash(sha256);
+					blockRecord.setVerificationProcessID(String.valueOf(Blockchain.PID));
+					DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss.SSS");  
+					LocalDateTime now = LocalDateTime.now();  
+					// System.out.println(dtf.format(now));  
+				  	fakeVerifiedBlock = "\n-[Block ID: " + blockRecord.getBlockID() + " verified by P" + Blockchain.PID + " at time " + dtf.format(now) + "]\n";
+				  	System.out.println(fakeVerifiedBlock);
+					// Convert the block record (java) object into a json object and send to peers
+					Gson gson = new GsonBuilder().setPrettyPrinting().create();
+					String jsonBlock = gson.toJson(blockRecord);
+					fakeVerifiedBlock = jsonBlock;
+
+					// Multicast the proposed new block to all peers
+				  	String tempblockchain = fakeVerifiedBlock + "," +Blockchain.blockchain; // add the verified block to the chain
 				  	for(int i=0; i < Blockchain.numProcesses; i++){ // multicast the new proposed blockchain to the group including this process:
 					    sock = new Socket(Blockchain.serverName, Ports.BlockchainServerPortBase + i);
 					    toServer = new PrintStream(sock.getOutputStream());
@@ -484,24 +515,45 @@ class UnverifiedBlockConsumer implements Runnable {
 	}
 }
     
- // Blockchain worker thread to verify new  blockchain that are expectedly the winners
+ // Blockchain worker thread to verify new proposed blocks and adds it to blockchain if verified
 class BlockchainWorker extends Thread { 
 	Socket sock; 
 	BlockchainWorker (Socket s) {sock = s;} 
 
 	public void run(){
     	try{
+
+    		// Read in the new proposed unverified block
       		BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
 			String data = "";
 			String data2;
 			while((data2 = in.readLine()) != null){
 				data = data + data2;
 			}
-			// Do check again to see if someone has just added this block to the chain
-			if(Blockchain.blockchain.indexOf(data.substring(1, 50)) < 0){	
+
+			if(Blockchain.blockchain.indexOf(data.substring(1, 50)) < 0){ // Avoids duplicates	
+
+				// Complete the format of the json array and then convert it to Block Records Array (Java Object Array)
+				String json = "[" + data + "]";
+				Gson gson2 = new Gson();
+		    	BlockRecord[] arr = gson2.fromJson(json, BlockRecord[].class);
+		    	BlockRecord verifiedBlock = arr[0];
+		    	// ceaseWork(verifiedBlock.getBlockID());
+
 				Blockchain.blockchain = data; // This is where we would normally verify if the block is legitimate
 				System.out.println("         --NEW BLOCKCHAIN--\n" + Blockchain.blockchain + "\n\n");
+
+				// If process 0: write shared blockchain ledger to disk
+				if (Blockchain.PID == 0) { 
+				    //Write the JSON object to a file:
+				    String filename = "BlockchainLedger.json";
+				    try (FileWriter writer = new FileWriter(filename)) {
+				    	Gson gson = new GsonBuilder().setPrettyPrinting().create();
+				      	gson.toJson(arr, writer);
+				    } catch (IOException e) {e.printStackTrace();}
+				}
 			}
+
 			sock.close(); 
 	    } catch (IOException x){x.printStackTrace();}
 	}
@@ -527,7 +579,7 @@ class BlockchainServer implements Runnable {
 
 class Blockchain {
 	static String serverName = "localhost";
-	static String blockchain = "[First block]";
+	static String blockchain = "{\"BlockID\": \"First block\", \"WinningHash\": \"0\"}";
 	static int numProcesses = 3; // This equates to the number of processes that will be executed from our batch file (also known as peers)
 	static int PID = 0; // Default process ID
 
@@ -543,12 +595,12 @@ class Blockchain {
 				sock.close();
 			} 
 			Thread.sleep(1000); // Wait for the server to process the keys - this could be an acknowledgement instead of a sleep
-			String recordList = BlockInput.getRecords(); // Get the input records and multicast it to all processes in json format
+			String inputBlockRecords = BlockInput.getRecords(); // Get the input records and multicast it to all processes in json format
 	      	for(int i=0; i< numProcesses; i++){
 	      		sock = new Socket(serverName, Ports.UnverifiedBlockServerPortBase + i);
 	      		toServer = new PrintStream(sock.getOutputStream());
-	      		System.out.println("Multicasting to PID " + i + ": " + recordList);
-	      		toServer.println(recordList);
+	      		System.out.println("Multicasting to PID " + i + ": " + inputBlockRecords);
+	      		toServer.println(inputBlockRecords); // Multicast the input block records to all network peers
 	      		toServer.flush();
 				sock.close();
 		    }	
@@ -584,7 +636,7 @@ class Blockchain {
 		new Thread(new BlockchainServer()).start(); // Start a thread to process incoming new blockchains
 		try{Thread.sleep(2000);}catch(Exception e){} // Wait for servers to start.
 		new Blockchain().Multicast(); // Multicast some new unverified blocks out to all servers as data
-		try{Thread.sleep(1000);}catch(Exception e){} // Wait for multicast to fill incoming queue for our example.
+		try{Thread.sleep(5000);}catch(Exception e){} // Wait for multicast to fill incoming queue for our example.
 		new Thread(new UnverifiedBlockConsumer(queue)).start(); // Start a thread to process the unverified blocks in the queue
 	}
 

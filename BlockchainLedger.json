@@ -1,8 +1,6 @@
 [
   {
-    "BlockID": "c34c2b42-f57f-42fb-b830-693973d8f855",
-    "VerificationProcessID": "1",
-    "PreviousHash": "82b2d3e26c1c4a251c8f9251f580aed4cb70de06200219621493e2b44d7d7067",
+    "BlockID": "da43a94aa08190de",
     "Fname": "Joe",
     "Lname": "DiMaggio",
     "SSNum": "111-22-3333",
@@ -10,14 +8,11 @@
     "Diag": "SoreKnees",
     "Treat": "RestFromSports",
     "Rx": "Aspirin",
-    "RandomSeed": "3",
-    "WinningHash": "f525e53b5b85e90afda3f6b563762773600f4119efa6c663ef142e81c4a97285",
-    "TimeStamp": " 2020-05-21.18:46:53.2"
+    "TimeStamp": " 2020-05-24.11:46:46.2",
+    "CreationProcess": "2"
   },
   {
-    "BlockID": "ff7e3a79-8b76-4efe-924f-99dfed25a2b0",
-    "VerificationProcessID": "1",
-    "PreviousHash": "668093e32d1dc957b5238484b631e875944edd019a2b4f93b090c65cbed9b0a9",
+    "BlockID": "d9afa949f78d2c58",
     "Fname": "Bruce",
     "Lname": "Lee",
     "SSNum": "456-789-123",
@@ -25,14 +20,11 @@
     "Diag": "SoreStomach",
     "Treat": "LessCombat",
     "Rx": "Vicodine",
-    "RandomSeed": "15",
-    "WinningHash": "82b2d3e26c1c4a251c8f9251f580aed4cb70de06200219621493e2b44d7d7067",
-    "TimeStamp": " 2020-05-21.18:46:53.1"
+    "TimeStamp": " 2020-05-24.11:46:46.1",
+    "CreationProcess": "1"
   },
   {
-    "BlockID": "f8dbe294-ec57-4b95-aaca-f9209c13bace",
-    "VerificationProcessID": "1",
-    "PreviousHash": "53dc86d02d082624eb3543efa32e68dec057771bf48dea6a3f54b80de253a212",
+    "BlockID": "36e7402463f3ed55",
     "Fname": "Wayne",
     "Lname": "Blaine",
     "SSNum": "123-45-6777",
@@ -40,14 +32,11 @@
     "Diag": "Measles",
     "Treat": "WaitToGetBetter",
     "Rx": "CodLiverOil",
-    "RandomSeed": "14",
-    "WinningHash": "668093e32d1dc957b5238484b631e875944edd019a2b4f93b090c65cbed9b0a9",
-    "TimeStamp": " 2020-05-21.18:46:53.0"
+    "TimeStamp": " 2020-05-24.11:46:46.0",
+    "CreationProcess": "0"
   },
   {
-    "BlockID": "72b3f8bc-17ca-48c4-b54b-95c5c047fe5f",
-    "VerificationProcessID": "1",
-    "PreviousHash": "fdd196d1c2e5b657dd81fb22f57f6d2162d6eb9d7aafc5383a56b466f962fb43",
+    "BlockID": "df1260060423537b",
     "Fname": "John",
     "Lname": "Kennedy",
     "SSNum": "333-45-6999",
@@ -55,14 +44,11 @@
     "Diag": "AddisonsDisease",
     "Treat": "DrugTherapy",
     "Rx": "Steroids",
-    "RandomSeed": "19",
-    "WinningHash": "53dc86d02d082624eb3543efa32e68dec057771bf48dea6a3f54b80de253a212",
-    "TimeStamp": " 2020-05-21.18:46:52.2"
+    "TimeStamp": " 2020-05-24.11:46:45.2",
+    "CreationProcess": "2"
   },
   {
-    "BlockID": "474235cf-f92e-4df0-beea-c34e7941e505",
-    "VerificationProcessID": "1",
-    "PreviousHash": "03d560ecfc33620ffd462be343699f1deebd346718ac81a4c632e5d10e9df4f2",
+    "BlockID": "382ff5c32761965f",
     "Fname": "Sally",
     "Lname": "McCutty",
     "SSNum": "123-456-999",
@@ -70,14 +56,11 @@
     "Diag": "Migraine",
     "Treat": "IcePack",
     "Rx": "Almotriptan",
-    "RandomSeed": "55",
-    "WinningHash": "fdd196d1c2e5b657dd81fb22f57f6d2162d6eb9d7aafc5383a56b466f962fb43",
-    "TimeStamp": " 2020-05-21.18:46:52.1"
+    "TimeStamp": " 2020-05-24.11:46:45.1",
+    "CreationProcess": "1"
   },
   {
-    "BlockID": "a8fc2df8-1ecc-4801-a6d5-19c483673f72",
-    "VerificationProcessID": "1",
-    "PreviousHash": "7dbc21217c66cb6fa9be615f26e70877d5b65f7b5eb6d8a2799944cba6640450",
+    "BlockID": "e048e928d2a282e5",
     "Fname": "Julie",
     "Lname": "Wilson",
     "SSNum": "123-45-6999",
@@ -85,14 +68,11 @@
     "Diag": "Insomnia",
     "Treat": "Exercise",
     "Rx": "HotPeppers",
-    "RandomSeed": "70",
-    "WinningHash": "03d560ecfc33620ffd462be343699f1deebd346718ac81a4c632e5d10e9df4f2",
-    "TimeStamp": " 2020-05-21.18:46:52.0"
+    "TimeStamp": " 2020-05-24.11:46:45.0",
+    "CreationProcess": "0"
   },
   {
-    "BlockID": "f557dd25-659d-4264-813c-75cce95821d2",
-    "VerificationProcessID": "1",
-    "PreviousHash": "920ba3e4e5ecacb49163438aef1e254601805551a0a42ced0c5ea08cf0313483",
+    "BlockID": "627b6ee8077f3bbc",
     "Fname": "Abraham",
     "Lname": "Lincoln",
     "SSNum": "444-45-6888",
@@ -100,14 +80,11 @@
     "Diag": "GreviousWound",
     "Treat": "Surgery",
     "Rx": "Whiskey",
-    "RandomSeed": "31",
-    "WinningHash": "7dbc21217c66cb6fa9be615f26e70877d5b65f7b5eb6d8a2799944cba6640450",
-    "TimeStamp": " 2020-05-21.18:46:51.2"
+    "TimeStamp": " 2020-05-24.11:46:44.2",
+    "CreationProcess": "2"
   },
   {
-    "BlockID": "069973ec-0064-473c-92ea-bc00d885315f",
-    "VerificationProcessID": "1",
-    "PreviousHash": "08920913dbc2ac2b7119c7252ef799d597c544582dceb9b0c5baf0973adc1de6",
+    "BlockID": "01130d1a669a949c",
     "Fname": "Wei",
     "Lname": "Xu",
     "SSNum": "123-456-333",
@@ -115,14 +92,11 @@
     "Diag": "Shingles",
     "Treat": "WaitForRelief",
     "Rx": "Zovirax",
-    "RandomSeed": "10",
-    "WinningHash": "920ba3e4e5ecacb49163438aef1e254601805551a0a42ced0c5ea08cf0313483",
-    "TimeStamp": " 2020-05-21.18:46:51.1"
+    "TimeStamp": " 2020-05-24.11:46:44.1",
+    "CreationProcess": "1"
   },
   {
-    "BlockID": "9587c1fd-f314-459a-897c-621fcc10636a",
-    "VerificationProcessID": "1",
-    "PreviousHash": "1a52b8274561a5e50b0a09189485e477c438a2d6461d08f5a740619ff43cb3a4",
+    "BlockID": "b6f5f19217c73d56",
     "Fname": "Joe",
     "Lname": "Blow",
     "SSNum": "123-45-6888",
@@ -130,14 +104,11 @@
     "Diag": "Smallpox",
     "Treat": "BedRest",
     "Rx": "Whiskey",
-    "RandomSeed": "60",
-    "WinningHash": "08920913dbc2ac2b7119c7252ef799d597c544582dceb9b0c5baf0973adc1de6",
-    "TimeStamp": " 2020-05-21.18:46:51.0"
+    "TimeStamp": " 2020-05-24.11:46:44.0",
+    "CreationProcess": "0"
   },
   {
-    "BlockID": "3774b842-bf04-4adb-aacc-313519651371",
-    "VerificationProcessID": "2",
-    "PreviousHash": "d1cb05d8de2c8778c72998d9941ddb0bd084c1c45571d1f821c6ac3cb16a72d9",
+    "BlockID": "cf24b0c5d41f00df",
     "Fname": "Helen",
     "Lname": "Keller",
     "SSNum": "666-45-6789",
@@ -145,14 +116,11 @@
     "Diag": "Arthritis",
     "Treat": "WarmCloths",
     "Rx": "Aspirin",
-    "RandomSeed": "5",
-    "WinningHash": "1a52b8274561a5e50b0a09189485e477c438a2d6461d08f5a740619ff43cb3a4",
-    "TimeStamp": " 2020-05-21.18:46:50.2"
+    "TimeStamp": " 2020-05-24.11:46:43.2",
+    "CreationProcess": "2"
   },
   {
-    "BlockID": "a0a9f714-bfa8-4bc1-9361-e88ee6876394",
-    "VerificationProcessID": "2",
-    "PreviousHash": "a0c5c64d4ad08fb73bae952642afdb50c84b2b3df25a63589b10113af75eb4b6",
+    "BlockID": "6c02c51645a4ad81",
     "Fname": "Rita",
     "Lname": "Vita",
     "SSNum": "999-456-789",
@@ -160,14 +128,11 @@
     "Diag": "ObessivePersonality",
     "Treat": "TryToRelax",
     "Rx": "Ibuprofen",
-    "RandomSeed": "51",
-    "WinningHash": "d1cb05d8de2c8778c72998d9941ddb0bd084c1c45571d1f821c6ac3cb16a72d9",
-    "TimeStamp": " 2020-05-21.18:46:50.1"
+    "TimeStamp": " 2020-05-24.11:46:43.1",
+    "CreationProcess": "1"
   },
   {
-    "BlockID": "b546c196-64f4-41a4-a682-15a801123a83",
-    "VerificationProcessID": "2",
-    "PreviousHash": "0",
+    "BlockID": "5426a80fc172638f",
     "Fname": "John",
     "Lname": "Smith",
     "SSNum": "123-45-6789",
@@ -175,9 +140,8 @@
     "Diag": "Chickenpox",
     "Treat": "BedRest",
     "Rx": "aspirin",
-    "RandomSeed": "33",
-    "WinningHash": "a0c5c64d4ad08fb73bae952642afdb50c84b2b3df25a63589b10113af75eb4b6",
-    "TimeStamp": " 2020-05-21.18:46:50.0"
+    "TimeStamp": " 2020-05-24.11:46:43.0",
+    "CreationProcess": "0"
   },
   {
     "BlockID": "First block",

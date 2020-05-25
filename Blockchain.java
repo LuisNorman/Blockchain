@@ -34,13 +34,11 @@ import java.text.*;
 import java.util.Base64;
 import java.util.Arrays;
 
-import java.math.BigInteger;
-import java.lang.Math;
-
-
 // Libraries needed to generate JSON 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import java.lang.reflect.Type; // Gets type to avoid warning 
+import com.google.gson.reflect.TypeToken; 
 
 // Libraries to read text files and inputs
 import java.io.FileWriter;
@@ -82,6 +80,7 @@ class BlockRecord{
 	String WinningHash;
 	String TimeStamp;
 	String CreationProcess; // Used to label which process created the block record
+	String signedBlockID;
 
 
 	/* Examples of accessors for the BlockRecord fields: */
@@ -130,26 +129,31 @@ class BlockRecord{
 	public String getCreationProcess() {return CreationProcess;}
 	public void setCreationProcess(String pnum){this.CreationProcess = pnum;}
 
+	// Encode and decode the signed block id (byte array) for easier reading
+	public byte[] getSignedBlockID() {return Base64.getDecoder().decode(signedBlockID);}
+	public void setSignedBlockID(byte[] signedBlockID) {this.signedBlockID = Base64.getEncoder().encodeToString(signedBlockID);}
+
 	public String toString() {return BlockID + " " + Lname + " " + Fname + " " + SSNum + " " + Rx + " " + DOB + " " + Treat + " " + Diag + " " + TimeStamp;}
   
-  	public String calculateBlockHash(String randomSeed) throws NoSuchAlgorithmException {
+  	public String generateBlockHash(String randomSeed, String previousWinningHash) throws NoSuchAlgorithmException {
   		
-  		String str = this.PreviousHash + this.Fname + this.Lname + this.SSNum + this.DOB + this.Diag + this.Treat + this.Rx + 
+  		// Concatenate the previous hash, the data, and the random seed
+  		String str = previousWinningHash + this.Fname + this.Lname + this.SSNum + this.DOB + this.Diag + this.Treat + this.Rx + 
   					this.TimeStamp + randomSeed;
 
+  		// Hash the block's info
   		MessageDigest digest = MessageDigest.getInstance("SHA-256");
 		byte[] encodedhash = digest.digest(str.getBytes(StandardCharsets.UTF_8));
 		String encryptedData = bytesToHex(encodedhash);
 		
-		return encryptedData;
+		return encryptedData; // Return the generated hash value
   	}
 
+  	// Method to convert the bytes array of the hash result to a String
   	private static String bytesToHex(byte[] hash) {
     	StringBuffer hexString = new StringBuffer();
     	for (int i = 0; i < hash.length; i++) {
-    		String hex = Integer.toHexString(0xff & hash[i]);
-    		if(hex.length() == 1) hexString.append('0');
-        		hexString.append(hex);
+    		hexString.append(Integer.toHexString(0xFF & hash[i]));
     	}
     	return hexString.toString();
 	}
@@ -157,26 +161,18 @@ class BlockRecord{
 
 class Key {
 
-	static PrivateKey privateKey;
-	static PublicKey publicKey;
+	static PrivateKey privateKey; // Private key of this process
+	static PublicKey publicKey; // Public key of this process
 
-	static HashMap<Integer, PrivateKey> privateKeys = new HashMap<>();
-	static HashMap<Integer, PublicKey> publicKeys = new HashMap<>();
-
-	// http://www.java2s.com/Tutorial/Java/0490__Security/GeneratingaPublicPrivateKeyPair.htm
+	static HashMap<Integer, PublicKey> publicKeys = new HashMap<>(); // Map to hold all peers public key's
 
 	public void setKeys() throws NoSuchAlgorithmException {
-
 		KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
 	    keyGen.initialize(1024); // Set the key siz
     	KeyPair keypair = keyGen.genKeyPair(); // Generate new private/public key pair
-
 	    privateKey = keypair.getPrivate(); // Assign private key
-	    // 	// System.out.println(privateKey);
-
 	   	publicKey = keypair.getPublic(); // Assign public key
-	    // 	// System.out.println(publicKey);
-
+	   	System.out.println("\nMy pub key:"+publicKey +"\n"); // Display the process public key
 	}
 
 	// Method to get the instance of this object's key
@@ -190,25 +186,31 @@ class Key {
 	}
 
 	// Method to set the public of specific network peers
-	public void setKey(int pnum, PublicKey publicKey) {
+	public static void addPublicKey(int pnum, PublicKey publicKey) {
 		publicKeys.put(pnum, publicKey);
 	}
 
-	// Method to sign document using this instance's private key
-	public String signDocument(String document) throws NoSuchAlgorithmException {
-		String signedDocument = "";
-		Signature signature = Signature.getInstance("SHA256withRSA"); // Create signature object using SHA256 w RSA
-		// Init signature using the instance's private key
-		try {signature.initSign(privateKey);} 
-		catch (Exception ex) {System.out.println(ex);}
-		
-		
+	// Method to sign document. Thanks to https://www.tutorialspoint.com/java_cryptography/java_cryptography_verifying_signature.htm
+	public static byte[] signDocument(String documentToSign) throws Exception {
+        // Init signature using the instance's private key
+        Signature signature = Signature.getInstance("SHA256withRSA"); // Create signature object using SHA256 w RSA
+        try {signature.initSign(Key.privateKey);} 
+        catch (Exception ex) {System.out.println(ex);}
+        signature.update(documentToSign.getBytes()); // Insert the message into the signature
+        byte[] signedDocument = signature.sign(); // Sign the message
 
-		return signedDocument;
+        return signedDocument;
+    }
 
-	}
+    // Method to verify signed document
+    public static Boolean verifySignedDocument(PublicKey publicKey, byte[] signedDocument, String documentToVerify) throws Exception {
+        Signature signature = Signature.getInstance("SHA256withRSA"); // Create signature object using SHA256 w RSA
+        signature.initVerify(publicKey); // Init the signature with the public key 
+        signature.update(documentToVerify.getBytes()); // Feed the documents to the signature object for verification
+        boolean isCorrect = signature.verify(signedDocument); // Verify that the public key holder signed this document
 
-
+        return isCorrect;
+    }
 }
 
 
@@ -239,12 +241,11 @@ class BlockInput{
 		}
     };
 
-    private static String bytesToHex(byte[] hash) {
+    // Method to convert the bytes array of the hash result to a String
+  	private static String bytesToHex(byte[] hash) {
     	StringBuffer hexString = new StringBuffer();
     	for (int i = 0; i < hash.length; i++) {
-    		String hex = Integer.toHexString(0xff & hash[i]);
-    		if(hex.length() == 1) hexString.append('0');
-        		hexString.append(hex);
+    		hexString.append(Integer.toHexString(0xFF & hash[i]));
     	}
     	return hexString.toString();
 	}
@@ -252,22 +253,23 @@ class BlockInput{
   	// args will determine the process
   	public static String getRecords() throws Exception {
   
-     	LinkedList<BlockRecord> recordList = new LinkedList<BlockRecord>();
+     	LinkedList<BlockRecord> recordList = new LinkedList<BlockRecord>(); // List to hold the records
+    	
+     	// Not used for anything meaningful
+    	int pnum; // The instance's current process 
+	    int UnverifiedBlockPort; // The instance's current unerified block port 
+	    int BlockChainPort; // The instance's current blockchain port 
 
-    	/* CDE: Process numbers and port numbers to be used: */
-    	int pnum;
-	    int UnverifiedBlockPort;
-	    int BlockChainPort;
-
-		// Determine the process number
-		pnum = Blockchain.PID;
+	    // Not used for anything meaningful
+		// Set the process port numbers
+		pnum = Blockchain.PID; 
 		UnverifiedBlockPort = 4710 + pnum;
 		BlockChainPort = 4820 + pnum;
 
 		System.out.println("Process number: " + pnum + " Ports: " + UnverifiedBlockPort + " " + 
 			       BlockChainPort + "\n");
 
-		// Determine the process to get the right input file
+		// Determine the process num in order to get the right input file
 		switch(pnum){
 			case 1: FILENAME = "BlockInput1.txt"; break;
 			case 2: FILENAME = "BlockInput2.txt"; break;
@@ -288,7 +290,6 @@ class BlockInput{
 	      
 	      	while ((InputLineStr = br.readLine()) != null) {
 		
-				
 				/* Convert the file information into a block record (java object) */
 
 				BlockRecord BR = new BlockRecord();
@@ -304,11 +305,15 @@ class BlockInput{
 
 					/* CDE: Generate a unique blockID. And also sign it by the creating process. */
 					suuid = new String(UUID.randomUUID().toString());
+
+					// Hash the block id to be sent sent over the network
 					MessageDigest digest = MessageDigest.getInstance("SHA-256");
-					byte[] encodedhash = digest.digest(suuid.getBytes(StandardCharsets.UTF_8));
-					String sha256 = bytesToHex(encodedhash);
+					byte[] hash = digest.digest(suuid.getBytes(StandardCharsets.UTF_8));
+					String sha256 = bytesToHex(hash);
 					String hashed_suuid = sha256.substring(sha256.length()-16);
-					BR.setBlockID(hashed_suuid);
+					BR.setBlockID(hashed_suuid); // Set block id
+
+					BR.setSignedBlockID(Key.signDocument(hashed_suuid)); // Sign the block id for verification purposes
 
 					// Finish setting the others fields
 					tokens = InputLineStr.split(" +"); // Tokenize the input 
@@ -367,15 +372,37 @@ class PublicKeyWorker extends Thread {
 			BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
 			String publicKey = "";
 			String data;
-			while((data = in.readLine()) != null) {
+			while((data = in.readLine()) != null) { // Read in the public key
 				publicKey += data;
 			}
 
 			System.out.println("Got public key: " + publicKey);
+			
+			Type mapType = new TypeToken<HashMap<String,String>>() {}.getType(); // Credit to https://stackoverflow.com/questions/21591148/gson-gives-unchecked-conversion-warning
+			HashMap<String, String> jsonMap = new Gson().fromJson(publicKey, mapType);
+			
+			int pnum = Integer.valueOf(jsonMap.get("ProcessID"));
+
+			// Decode the encoded public and convert it into a public key 
+			// Thanks to: http://janiths-codes.blogspot.com/2009/11/how-to-convert-publickey-as-string-and.html
+			try {
+				String encodedPublicKey = jsonMap.get("PublicKey"); // extract the public key
+				byte[] publicKeyArray = Base64.getDecoder().decode(encodedPublicKey); // Decode the encoded public key 
+				X509EncodedKeySpec x509KeySpec = new X509EncodedKeySpec(publicKeyArray);
+				KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+				PublicKey realPublicKey = keyFactory.generatePublic(x509KeySpec);
+				Key.addPublicKey(pnum, realPublicKey);
+			}
+			catch(Exception ex){
+				System.out.println("Didn't add public key: "+ex);
+			}
+
+
 			sock.close(); 
 		} catch (IOException x){x.printStackTrace();}
 	}
 }
+
 
 // Public key server to listen for incoming connection sending their public key 
 class PublicKeyServer implements Runnable {
@@ -466,31 +493,26 @@ class UnverifiedBlockConsumer implements Runnable {
   	}
 
 	private static Boolean isWinningHash(String hash) {
-		String hexLine = "0123456789ABCDEF";
-		int decimal = 0;
-		for (int i=0; i<hash.length(); i++) {
-			char current_char = hash.charAt(i);
-			int addition = hexLine.indexOf(current_char);
-			decimal += 16 * decimal + addition;
-			if (decimal < 10000)
-				return false;
-			System.out.println("\n\n\n\n\n\nWINNER: " + Blockchain.PID);
+		int decimal = Integer.parseInt(hash, 16);
+		System.out.println("My guess = Hash: " + hash + ",  Decimal: " + decimal);
+		if (decimal < 15000) {
+			System.out.println("Winner");
+			return true;
 		}
-		return true;
+		return false;
 
 	}
 
-	public Boolean isAdded(BlockRecord blockRecord) {
+	public Boolean isRecentlyAdded(BlockRecord blockRecord) {
 		// Set the current block record's previous hash by getting the current blockchain, extracting the last added block, and the winning hash value
 		String json = "[" + Blockchain.blockchain + "]";
 		Gson gson2 = new Gson();
 		BlockRecord[] arr = gson2.fromJson(json, BlockRecord[].class);
 
 		for (int i=0; i<arr.length; i++) {
-			if (blockRecord.getBlockID() == arr[i].getBlockID())
+			if (blockRecord.getBlockID().equals(arr[i].getBlockID()))
 				return true;
 		}
-
 		return false;
 
 	}
@@ -502,59 +524,55 @@ class UnverifiedBlockConsumer implements Runnable {
 	    Socket sock;
 	    String fakeVerifiedBlock;
 
-	 //    /* The fields created when reading in incoming records */
-		// String BlockID;
-		// String VerificationProcessID;
-		// String PreviousHash; // The hash that comes from the previous block
-		// UUID uuid; // Just to show how JSON marshals this binary data.
-		// String Fname;
-		// String Lname;
-		// String SSNum;
-		// String DOB;
-		// String Diag;
-		// String Treat;
-		// String Rx;
-		// String RandomSeed; // The answer to solve the work - which is a guess
-		// String WinningHash;
-		// String TimeStamp;
-
 	    System.out.println("Starting the Unverified Block Priority Queue Consumer thread.\n");
     	try{
       		while(true){ // Consume from the incoming queue. Do the work to verify. Mulitcast new blockchain	
 
 		    	blockRecord = queue.take(); // Remove oldest block from the queue
+		    	
+		    	// Get the previous block record's winning hash value
+		    	String json = "[" + Blockchain.blockchain + "]";
+				Gson gson2 = new Gson();
+				BlockRecord[] arr = gson2.fromJson(json, BlockRecord[].class);
+				String previousWinningHash = arr[0].getWinningHash();
 
-				System.out.println("Consumer got unverified: " + blockRecord.toString());
+				System.out.println("Consumer got unverified: " + blockRecord.toString()+"\n");
 
 				/* https://www.baeldung.com/sha-256-hashing-java */
-
+				String randomSeed = null;
+				String hash = null;
+				Boolean isWinningHash = false;
 				for(int i=0; i < 100; i++){ // add time constraint on how long the puzzle can take at max
-					if (isAdded(blockRecord)) // Check if block record was recently added
-						blockRecord = queue.take(); // If so, get another block record
-					String randomSeed = ThreadLocalRandom.current().nextInt(0,81); // Generate a random seed
-					String hash = blockRecord.calculateBlockHash(randomSeed); // Compute new possible winning hash
-
-					if isWinningHash(hash.substring(hash.length()-16)) { // Check if last 16 bits of hash value is less than 5000 which equals winner
-						break; // Found the winning hash
+					
+					if (isRecentlyAdded(blockRecord)) { // Check if block record was recently added
+						System.out.println("Block was recently added. Please get a new one.\n");
+						break; // Start over in the while loop with a new block record
 					}
+
+					/* Instead of updating the object with the random seed, I generated
+					a hash value of those values combine(a+b+c/previousHash+data+randomSeed) 
+					and if is the winning puzzle, I then insert the fields in the block. 
+					This prevents modifyin an object that may be in the process of getting validated  */
+					randomSeed = String.valueOf(ThreadLocalRandom.current().nextInt(0,81)); // Generate a random seed
+					hash = blockRecord.generateBlockHash(randomSeed, previousWinningHash); // Compute new possible winning hash
+					isWinningHash = isWinningHash(hash.substring(0,4)); // Get the 4 left most hex value which represents the left most 16 bits
+					if (isWinningHash) // Check if last 16 bits of hash value is less than 5000 which equals winner
+						break; // Found the winning hash
 
 					try{Thread.sleep(500);}catch(Exception e){e.printStackTrace();}
 				}
-
-				// Ordindarily we would do real work here, based on the incoming data.
-				// int j; // Here we fake doing some work (That is, here we could cheat, so not ACTUAL work...)
-				// for(int i=0; i< 100; i++){ // add time constraint on how long the puzzle can take at max
-				// 	j = ThreadLocalRandom.current().nextInt(0,10);
-				// 	try{Thread.sleep(500);}catch(Exception e){e.printStackTrace();}
-				// 	if (j < 3) break; // <- how hard our fake work is; about 1.5 seconds.
-				// }	
 	
-				if(!isAdded(blockRecord)){ // Check if the block id has been recently inserted in the blockchain
+				if(isWinningHash && !isRecentlyAdded(blockRecord)){ // Check if the block id has not been recently inserted in the blockchain
 					blockRecord.setRandomSeed(randomSeed); // Set the block's random string
-					blockRecord.setWinningHash(hash);
-					blockRecord.setVerificationProcessID(String.valueOf(Blockchain.PID));
+					blockRecord.setWinningHash(hash); // Set the block's winning hash
+					blockRecord.setVerificationProcessID(String.valueOf(Blockchain.PID)); // Set the block's verification process num
+					blockRecord.setPreviousHash(previousWinningHash);// Set the winning hash here to we avoid modifying objects after or while being validated
+	
+					// Get the time to display when block was solved
 					DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss.SSS");  
 					LocalDateTime now = LocalDateTime.now();  
+				  	
+				  	// Display new  proposed block
 				  	fakeVerifiedBlock = "\n-[Block ID: " + blockRecord.getBlockID() + " verified by P" + Blockchain.PID + " at time " + dtf.format(now) + "]\n";
 				  	System.out.println(fakeVerifiedBlock);
 
@@ -564,11 +582,11 @@ class UnverifiedBlockConsumer implements Runnable {
 					fakeVerifiedBlock = jsonBlock;
 
 					// Multicast the proposed new block to all peers
-				  	String tempblockchain = fakeVerifiedBlock + "," +Blockchain.blockchain; // add the verified block to the chain
+				  	String proposedBlockchain = fakeVerifiedBlock + "," +Blockchain.blockchain; // add the verified block to the chain
 				  	for(int i=0; i < Blockchain.numProcesses; i++){ // multicast the new proposed blockchain to the group including this process:
 					    sock = new Socket(Blockchain.serverName, Ports.BlockchainServerPortBase + i);
 					    toServer = new PrintStream(sock.getOutputStream());
-					    toServer.println(tempblockchain); toServer.flush(); // make the multicast
+					    toServer.println(proposedBlockchain); toServer.flush(); // make the multicast
 					    sock.close();
 				  	}
 				}
@@ -582,6 +600,16 @@ class UnverifiedBlockConsumer implements Runnable {
 class BlockchainWorker extends Thread { 
 	Socket sock; 
 	BlockchainWorker (Socket s) {sock = s;} 
+
+	// Method to verify the signed block id
+	public boolean verifiedSignedBlockID(BlockRecord blockRecord) throws Exception {
+		byte[] signedBlockID = blockRecord.getSignedBlockID(); // Get the block's signed block id
+		int pnum = Integer.valueOf(blockRecord.getCreationProcess()); // Get the process number who created the block
+		PublicKey key = Key.getPublicKey(pnum); // Get the public key of the process who created the block
+		String blockID = blockRecord.getBlockID(); // Get the block id of the block
+		boolean verified = Key.verifySignedDocument(key, signedBlockID, blockID); // Verify the signed block id was signed by the process who created the block
+		return verified;
+	}
 
 	public void run(){
     	try{
@@ -601,19 +629,28 @@ class BlockchainWorker extends Thread {
 				Gson gson2 = new Gson();
 		    	BlockRecord[] arr = gson2.fromJson(json, BlockRecord[].class);
 		    	BlockRecord verifiedBlock = arr[0];
-
-				Blockchain.blockchain = data; // This is where we would normally verify if the block is legitimate
-				System.out.println("         --NEW BLOCKCHAIN--\n" + Blockchain.blockchain + "\n\n");
-
-				// If process 0: write shared blockchain ledger to disk
-				if (Blockchain.PID == 0) { 
-				    //Write the JSON object to a file:
-				    String filename = "BlockchainLedger.json";
-				    try (FileWriter writer = new FileWriter(filename)) {
-				    	Gson gson = new GsonBuilder().setPrettyPrinting().create();
-				      	gson.toJson(arr, writer);
-				    } catch (IOException e) {e.printStackTrace();}
+		    	Boolean verified = false;
+				try {
+					verified = verifiedSignedBlockID(arr[0]);
 				}
+				catch(Exception ex) {
+					System.out.println(ex);
+				}
+
+				if (verified) {
+					System.out.println("Verified blockchain");
+					Blockchain.blockchain = data; // This is where we would normally verify if the block is legitimate
+					System.out.println("\n         --NEW BLOCKCHAIN--\n" + Blockchain.blockchain + "\n\n");
+					// If process 0: write shared blockchain ledger to disk
+					if (Blockchain.PID == 0) { 
+				    	//Write the JSON object to a file:
+				    	String filename = "BlockchainLedger.json";
+				    	try (FileWriter writer = new FileWriter(filename)) {
+				    		Gson gson = new GsonBuilder().setPrettyPrinting().create();
+				      		gson.toJson(arr, writer);
+				    	} catch (IOException e) {e.printStackTrace();}
+					}
+				}	
 			}
 
 			sock.close(); 
@@ -637,8 +674,6 @@ class BlockchainServer implements Runnable {
   	}
 }
 
-
-
 class Blockchain {
 	static String serverName = "localhost";
 	static String blockchain = "{\"BlockID\": \"0\", \"WinningHash\": \"0\"}";
@@ -653,7 +688,9 @@ class Blockchain {
 	    	for(int i=0; i< numProcesses; i++){ // multicast the public key to all network peers public key server.
 	    		sock = new Socket(serverName, Ports.KeyServerPortBase + i); 
 				toServer = new PrintStream(sock.getOutputStream());
-				toServer.println("{\"Process ID\": " + "\"" + PID + "\"" + ", PublicKey: " + "\"" + Key.getPublicKey() +  "\"" + "}"); 
+				byte[] encodedPublicKey = Key.getPublicKey().getEncoded();
+				String encodedPubKeyString = Base64.getEncoder().encodeToString(encodedPublicKey);
+				toServer.println("{\"ProcessID\": " + "\"" + PID + "\"" + ", PublicKey: " + "\"" + encodedPubKeyString +  "\"" + "}"); 
 				toServer.flush(); // Send the process id and public key so other processes can verify you.
 				sock.close();
 			} 

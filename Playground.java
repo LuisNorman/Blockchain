@@ -10,54 +10,128 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.security.Security;
+import java.security.Signature;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import javax.crypto.Cipher;
+import java.security.spec.*;
+import java.security.*;
+import java.util.Arrays;
+
+import java.util.Base64;
 
 class Playground {
 
   public static void main(String[] argv) throws Exception {
-    // Generate a 1024-bit Digital Signature Algorithm (DSA) key pair
-    KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
-    keyGen.initialize(1024);
-    PrivateKey[] privateKeys = new PrivateKey[3];
-    for (int i=0; i<3; i++) {
-    	KeyPair keypair = keyGen.genKeyPair();
-    	PrivateKey privateKey = keypair.getPrivate();
-    	
-    	System.out.println(privateKey);
+        // Generate a 1024-bit Digital Signature Algorithm (DSA) key pair
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+        keyGen.initialize(1024);
 
-    	System.out.println("\n\n\n\nHERE\n\n");
-   	 	PublicKey publicKey = keypair.getPublic();
-    	System.out.println(publicKey);
+        KeyPair keypair = keyGen.genKeyPair();
+        PrivateKey privateKey = keypair.getPrivate();
+        	
+    	// System.out.println(privateKey);
+
+    	// System.out.println("\n\n\n\nHERE\n\n");
+    	PublicKey publicKey = keypair.getPublic();
+    	// System.out.println(publicKey);
+
+
+        // MessageDigest md = MessageDigest.getInstance("SHA-256");
+        // Byte[] messageHash = md.digest(document.getBytes());
+
+        // System.out.println(messageHash[0]);
+
+        // Cipher cipher = Cipher.getInstance("RSA");
+        // cipher.init(Cipher.ENCRYPT_MODE, privateKey);
+        // Byte[] digitalSignature = cipher.doFinal(document.getBytes());
+
+        // System.out.println(digitalSignature[0]);
+
+        // you decrypt by hashing the message and see 
+
+
+        String document = "This is my document.";
+        Signature signature = Signature.getInstance("SHA256withRSA"); // Create signature object using SHA256 w RSA
+        byte[] signedDocument = signDocument(signature, document, privateKey);
+        // String signedDocumentString = bytesToHex(signedDocument); // convert to hex string to store in object
+        String signedDocumentString = Base64.getEncoder().encodeToString(signedDocument);
+        System.out.println ("toString");
+        System.out.println (signedDocumentString);
+
+
+        byte[] signDocumentByteArr = Base64.getDecoder().decode(signedDocumentString);
+        System.out.println ("toBytes");
+        System.out.println (signDocumentByteArr);
+        // byte[] signDocumentByteArr = decodeHexString(signedDocumentString); // convert from hex string to byte arr for normal use again
+        System.out.println(verifySignedDocument(signature, signDocumentByteArr, publicKey, document));
+
+        // byte[] signedDocument2 = signedDocumentString.split(",");
+        // System.out.println(verifySignedDocument(signature, signedDocument, publicKey, document));
+        
+
     }
-    
-  }
-	
-// 	public static void main(String[] args) {
-// 	// 	String prepend = "{\"BlockRecord\" : "; // Prepend this so later I can parse this as an object and the records as an array. Allows me to see how many records there are 
-// 	// 	String append = "}"; // Complete the format
-// 	// 	String s = "[  {    \"BlockID\": \"55398503-6d76-4346-b295-44ccb38ae985\",    \"Fname\": \"Helen\",    \"Lname\": \"Keller\",    \"SSNum\": \"666-45-6789\",    \"DOB\": \"1880.06.27\",    \"Diag\": \"Arthritis\",    \"Treat\": \"WarmCloths\",    \"Rx\": \"Aspirin\",    \"TimeStamp\": \" 2020-05-20.15:23:08.2\"  },  {    \"BlockID\": \"1974f1ec-b3e3-4d74-acb2-6781d306b51b\",    \"Fname\": \"Abraham\",    \"Lname\": \"Lincoln\",    \"SSNum\": \"444-45-6888\",    \"DOB\": \"1809.02.12\",    \"Diag\": \"GreviousWound\",    \"Treat\": \"Surgery\",    \"Rx\": \"Whiskey\",    \"TimeStamp\": \" 2020-05-20.15:23:09.2\"  },  {    \"BlockID\": \"b0006a4a-0203-466a-b45a-352ec0378bdf\",    \"Fname\": \"John\",    \"Lname\": \"Kennedy\",    \"SSNum\": \"333-45-6999\",    \"DOB\": \"1917.05.29\",    \"Diag\": \"AddisonsDisease\",    \"Treat\": \"DrugTherapy\",    \"Rx\": \"Steroids\",    \"TimeStamp\": \" 2020-05-20.15:23:10.2\"  },  {    \"BlockID\": \"e9e45302-b6f3-43f5-a8e9-358ae40a20b9\",    \"Fname\": \"Joe\",    \"Lname\": \"DiMaggio\",    \"SSNum\": \"111-22-3333\",    \"DOB\": \"1914.11.25\",    \"Diag\": \"SoreKnees\",    \"Treat\": \"RestFromSports\",    \"Rx\": \"Aspirin\",    \"TimeStamp\": \" 2020-05-20.15:23:11.2\"  }]";
-		
-// 	//     Socket sock;
-// 	//     PrintStream toServer;
-// 	//     for (int i= 0; i<3; i++) {
-// 	//     	try {
-// 	//     		int port = 4820+i;
-// 	//     		sock = new Socket("localhost", port);
-// 	//   			toServer = new PrintStream(sock.getOutputStream());
-// 	// 	  		System.out.println("Multicasting to PID " + i + ": " + s);
-// 	// 	  		toServer.println(s); // Multicast the input block records to all network peers
-// 	// 	  		toServer.flush();
-// 	// 			sock.close();
-// 	//     	}
-// 	//     	catch(Exception ex){
-// 	//     		System.out.println(ex);
-// 	//     	}
-	    	
-// 	// 	}
-// 	// }
-// 		// int b = Integer.parseInt("sha256", 16);
 
-// 	    System.out.println('a'+1);
-// 	}
+    public static byte[] decodeHexString(String hexString) {
+        byte[] val = new byte[hexString.length() / 2];
+        for (int i = 0; i < val.length; i++) {
+           int index = i * 2;
+           int j = Integer.parseInt(hexString.substring(index, index + 2), 16);
+           val[i] = (byte) j;
+        }
+        System.out.println(val);
+        return val;
+    }
+
+    public static  byte hexToByte(String hexString) {
+        int firstDigit = toDigit(hexString.charAt(0));
+        int secondDigit = toDigit(hexString.charAt(1));
+        return (byte) ((firstDigit << 4) + secondDigit);
+    }
+
+    private static int toDigit(char hexChar) {
+        int digit = Character.digit(hexChar, 16);
+        if(digit == -1) {
+            throw new IllegalArgumentException(
+              "Invalid Hexadecimal Character: "+ hexChar);
+        }
+        return digit;
+    }
+
+    private static String bytesToHex(byte[] hash) {
+        StringBuffer hexString = new StringBuffer();
+        for (int i = 0; i < hash.length; i++) {
+            hexString.append(Integer.toHexString(0xFF & hash[i]));
+        }
+        return hexString.toString();
+    }
+  
+
+  // Method to sign document using this instance's private key
+    public static byte[] signDocument(Signature signature, String documentToSign, PrivateKey privateKey) throws Exception {
+        // Init signature using the instance's private key
+        try {signature.initSign(privateKey);} 
+        catch (Exception ex) {System.out.println(ex);}
+        signature.update(documentToSign.getBytes());
+        byte[] signedDocument = signature.sign();
+
+        
+        return signedDocument;
+    }
+
+    public static Boolean verifySignedDocument(Signature signature, byte[] signedDocument, PublicKey publicKey, String documentToVerify) throws Exception {
+        
+        signature.initVerify(publicKey);
+        signature.update(documentToVerify.getBytes());
+        boolean isCorrect = signature.verify(signedDocument);
+
+        return isCorrect;
+    }
+
+
+
 }
 
 

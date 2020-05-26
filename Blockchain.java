@@ -497,16 +497,6 @@ class UnverifiedBlockConsumer implements Runnable {
     	this.queue = queue; // Make the queue publicly accessible.
   	}
 
-	private static Boolean isWinningHash(String hash) {
-		int decimal = Integer.parseInt(hash, 16);
-		System.out.println("My guess = Hash: " + hash + ",  Decimal: " + decimal);
-		if (decimal < 15000) {
-			System.out.println("Winner");
-			return true;
-		}
-		return false;
-	}
-
 	public Boolean isRecentlyAdded(BlockRecord blockRecord) {
 		// Set the current block record's previous hash by getting the current blockchain, extracting the last added block, and the winning hash value
 		String json = "[" + Blockchain.blockchain + "]";
@@ -571,7 +561,7 @@ class UnverifiedBlockConsumer implements Runnable {
 					This prevents modifyin an object that may be in the process of getting validated  */
 					randomSeed = String.valueOf(ThreadLocalRandom.current().nextInt(0,81)); // Generate a random seed
 					hash = blockRecord.generateBlockHash(randomSeed, previousWinningHash); // Compute new possible winning hash
-					isWinningHash = isWinningHash(hash.substring(0,4)); // Get the 4 left most hex value which represents the left most 16 bits
+					isWinningHash = Puzzle.isWinningHash(hash.substring(0,4), true); // Get the 4 left most hex value which represents the left most 16 bits
 					if (isWinningHash) // Check if last 16 bits of hash value is less than 5000 which equals winner
 						break; // Found the winning hash
 
@@ -612,15 +602,31 @@ class UnverifiedBlockConsumer implements Runnable {
 		} catch (Exception e) {System.out.println(e);}
 	}
 }
+
+// Class to store the work logic
+class Puzzle {
+
+	// Method that returns whether or not the hash is the answer (within range <10k)
+	public static boolean isWinningHash(String hash, boolean verbose) { // Verbose prints the details of the guess
+		if (verbose) {
+			int decimal = Integer.parseInt(hash, 16);
+			System.out.println("My guess = Hash: " + hash + ",  Decimal: " + decimal);
+			if (decimal < 10000) {
+				System.out.println("Winner");
+				return true;
+			}
+			return false;
+		}
+		else 
+			return Integer.parseInt(hash, 16) < 10000;
+	}
+
+}
     
  // Blockchain worker thread to verify new proposed blocks and adds it to blockchain if verified
 class BlockchainWorker extends Thread { 
 	Socket sock; 
 	BlockchainWorker (Socket s) {sock = s;}
-
-	private static Boolean isWinningHash(String hash) {
-		return Integer.parseInt(hash, 16) < 15000;
-	}
 
 	// Method to verify the signed block id
 	public boolean verifiedSignedBlockID(BlockRecord blockRecord) throws Exception {
@@ -631,7 +637,7 @@ class BlockchainWorker extends Thread {
 		PublicKey creationProcessKey = Key.getPublicKey(creationProcess); // Get the public key of the process who created the block
 		String blockID = blockRecord.getBlockID(); // Get the block id of the block
 		boolean verifiedSignedBlockID = Key.verifySignedDocument(creationProcessKey, signedBlockID, blockID); // Verify the signed block id was signed by the process who created the block
-	
+		if (!verifiedSignedBlockID) return false; // Don't waste time, return false as soon as something can't be verified
 
 		// Verify the signed winning hash 
 		byte[] signedWinningHash = blockRecord.getSignedWinningHash(); // Get the block's signed winning hash
@@ -639,8 +645,8 @@ class BlockchainWorker extends Thread {
 		PublicKey verficationProcessKey = Key.getPublicKey(verficationProcess); // Get the public key of the process who created the block
 		String winningHash = blockRecord.getWinningHash(); // Get the winningHash of the block
 		boolean verifiedSignedHash = Key.verifySignedDocument(verficationProcessKey, signedWinningHash, winningHash); // Verify the signed winningHash was signed by the process who mined the block
-	
-		
+		if (!verifiedSignedHash) return false; // Don't waste time, return false as soon as something can't be verified
+
 
 		// Verify the hash actually meets the requirement when reconstructed from scratch
 		String randomSeed = blockRecord.getRandomSeed(); // Get random seed
@@ -649,13 +655,12 @@ class BlockchainWorker extends Thread {
 		BlockRecord[] arr = gson2.fromJson(json, BlockRecord[].class); // Convert blockchain json array into array of block records
 		String previousWinningHash = arr[0].getWinningHash(); // Get the previous winning hash that's needed to recompute the winning hash
 		String newHash = blockRecord.generateBlockHash(randomSeed, previousWinningHash); // Generate new block hash
-		boolean verifiedNewHash = isWinningHash(newHash.substring(0,4)); // Verify new hash (See if it actually does produce a winning result)
+		boolean verifiedNewHash = Puzzle.isWinningHash(newHash.substring(0,4), false); // Verify new hash (See if it actually does produce a winning result)
+		if (!verifiedNewHash) return false; // Don't waste time, return false as soon as something can't be verified
 
-		boolean equivalentHash = newHash.equals(winningHash); // See if reconstructed winning hash equals the actual block's winning hash 
+		boolean equivalentHash =  newHash.equals(winningHash);// See if reconstructed winning hash equals the actual block's winning hash 
 
-		boolean verifiedBlock = verifiedSignedBlockID && verifiedSignedHash && verifiedNewHash && equivalentHash; // Determine if all verification conditions are met
-		
-		return verifiedBlock; 
+		return equivalentHash; 
 	}
 
 	public void run(){

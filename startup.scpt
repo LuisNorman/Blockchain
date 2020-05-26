@@ -13,11 +13,15 @@ tell application "Terminal.app"
 
    tell application "System Events" to keystroke "n" using command down
 
+   delay 0.1
+   
    do script "cd /Users/luis/Desktop/DePaul/DistributedSystems/Assignment3/Blockchain && java -cp \".:gson-2.8.2.jar\" Blockchain 1" in front window
 
    delay 0.1
 
    tell application "System Events" to keystroke "n" using command down
+
+   delay 0.1
 
    do script "cd /Users/luis/Desktop/DePaul/DistributedSystems/Assignment3/Blockchain && java -cp \".:gson-2.8.2.jar\" Blockchain 2" in front window
 

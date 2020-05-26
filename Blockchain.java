@@ -80,7 +80,8 @@ class BlockRecord{
 	String WinningHash;
 	String TimeStamp;
 	String CreationProcess; // Used to label which process created the block record
-	String signedBlockID;
+	String signedBlockID; // The block id signed by the process who created it 
+	String signedWinningHash; // The winning hash signed by the process that solved this block's puzzle 
 
 
 	/* Examples of accessors for the BlockRecord fields: */
@@ -93,6 +94,7 @@ class BlockRecord{
 	public String getPreviousHash() {return this.PreviousHash;}
 	public void setPreviousHash (String PH){this.PreviousHash = PH;}
 
+	/* Can't send java objects across the network */
 	public UUID getUUID() {return uuid;} // Later will show how JSON marshals as a string. Compare to BlockID.
 	public void setUUID (UUID ud){this.uuid = ud;}
 
@@ -132,6 +134,9 @@ class BlockRecord{
 	// Encode and decode the signed block id (byte array) for easier reading
 	public byte[] getSignedBlockID() {return Base64.getDecoder().decode(signedBlockID);}
 	public void setSignedBlockID(byte[] signedBlockID) {this.signedBlockID = Base64.getEncoder().encodeToString(signedBlockID);}
+
+	public byte[] getSignedWinningHash() {return Base64.getDecoder().decode(signedWinningHash);}
+	public void setSignedWinningHash(byte[] signedWinningHash) {this.signedWinningHash = Base64.getEncoder().encodeToString(signedWinningHash);}
 
 	public String toString() {return BlockID + " " + Lname + " " + Fname + " " + SSNum + " " + Rx + " " + DOB + " " + Treat + " " + Diag + " " + TimeStamp;}
   
@@ -297,7 +302,7 @@ class BlockInput{
 				/* Timestamp the new block record first */
 				try{Thread.sleep(1001);}catch(InterruptedException e){}
 
-	      			Date date = new Date();
+	      			Date date = new Date(); // Create date object
 					//String T1 = String.format("%1$s %2$tF.%2$tT", "Timestamp:", date);
 					String T1 = String.format("%1$s %2$tF.%2$tT", "", date);
 					String TimeStampString = T1 + "." + pnum; // No timestamp collisions!
@@ -316,7 +321,7 @@ class BlockInput{
 					BR.setSignedBlockID(Key.signDocument(hashed_suuid)); // Sign the block id for verification purposes
 
 					// Finish setting the others fields
-					tokens = InputLineStr.split(" +"); // Tokenize the input 
+					tokens = InputLineStr.split(" +"); // Tokenize the input
 					BR.setFname(tokens[iFNAME]);
 					BR.setLname(tokens[iLNAME]);
 					BR.setSSNum(tokens[iSSNUM]);
@@ -500,7 +505,6 @@ class UnverifiedBlockConsumer implements Runnable {
 			return true;
 		}
 		return false;
-
 	}
 
 	public Boolean isRecentlyAdded(BlockRecord blockRecord) {
@@ -533,8 +537,9 @@ class UnverifiedBlockConsumer implements Runnable {
 		    	// Get the previous block record's winning hash value
 		    	String json = "[" + Blockchain.blockchain + "]";
 				Gson gson2 = new Gson();
-				BlockRecord[] arr = gson2.fromJson(json, BlockRecord[].class);
-				String previousWinningHash = arr[0].getWinningHash();
+				BlockRecord[] blockchain = gson2.fromJson(json, BlockRecord[].class);
+				int originalBlockchainLength = blockchain.length;
+				String previousWinningHash = blockchain[0].getWinningHash();
 
 				System.out.println("Consumer got unverified: " + blockRecord.toString()+"\n");
 
@@ -544,9 +549,20 @@ class UnverifiedBlockConsumer implements Runnable {
 				Boolean isWinningHash = false;
 				for(int i=0; i < 100; i++){ // add time constraint on how long the puzzle can take at max
 					
-					if (isRecentlyAdded(blockRecord)) { // Check if block record was recently added
-						System.out.println("Block was recently added. Please get a new one.\n");
+					// Get the blockchain length to see if it has been modified (a block was recently added)
+					String jsonBlock = "[" + Blockchain.blockchain + "]";
+					BlockRecord[] newBlockchain = gson2.fromJson(jsonBlock, BlockRecord[].class);
+					int newBlockchainLength = newBlockchain.length;
+
+					if (isRecentlyAdded(blockRecord)) { // Check if this block record was recently added
+						System.out.println("This block was recently solved. Get a new block record.\n");
 						break; // Start over in the while loop with a new block record
+					}
+
+					else if (originalBlockchainLength != newBlockchainLength) { // Check if blockchain length has chage
+						System.out.println("The blockchain was recently modified. Add block record to queue amd get a new one.\n");
+						queue.put(blockRecord); // Put this block record back in the queue
+						break; // Start over (get the next item in the queue and repeat)
 					}
 
 					/* Instead of updating the object with the random seed, I generated
@@ -567,7 +583,8 @@ class UnverifiedBlockConsumer implements Runnable {
 					blockRecord.setWinningHash(hash); // Set the block's winning hash
 					blockRecord.setVerificationProcessID(String.valueOf(Blockchain.PID)); // Set the block's verification process num
 					blockRecord.setPreviousHash(previousWinningHash);// Set the winning hash here to we avoid modifying objects after or while being validated
-	
+					blockRecord.setSignedWinningHash(Key.signDocument(hash)); // Sign the winning hash
+		
 					// Get the time to display when block was solved
 					DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss.SSS");  
 					LocalDateTime now = LocalDateTime.now();  
@@ -599,21 +616,50 @@ class UnverifiedBlockConsumer implements Runnable {
  // Blockchain worker thread to verify new proposed blocks and adds it to blockchain if verified
 class BlockchainWorker extends Thread { 
 	Socket sock; 
-	BlockchainWorker (Socket s) {sock = s;} 
+	BlockchainWorker (Socket s) {sock = s;}
+
+	private static Boolean isWinningHash(String hash) {
+		return Integer.parseInt(hash, 16) < 15000;
+	}
 
 	// Method to verify the signed block id
 	public boolean verifiedSignedBlockID(BlockRecord blockRecord) throws Exception {
+		
+		// Verify block id 
 		byte[] signedBlockID = blockRecord.getSignedBlockID(); // Get the block's signed block id
-		int pnum = Integer.valueOf(blockRecord.getCreationProcess()); // Get the process number who created the block
-		PublicKey key = Key.getPublicKey(pnum); // Get the public key of the process who created the block
+		int creationProcess = Integer.valueOf(blockRecord.getCreationProcess()); // Get the process number who created the block
+		PublicKey creationProcessKey = Key.getPublicKey(creationProcess); // Get the public key of the process who created the block
 		String blockID = blockRecord.getBlockID(); // Get the block id of the block
-		boolean verified = Key.verifySignedDocument(key, signedBlockID, blockID); // Verify the signed block id was signed by the process who created the block
-		return verified;
+		boolean verifiedSignedBlockID = Key.verifySignedDocument(creationProcessKey, signedBlockID, blockID); // Verify the signed block id was signed by the process who created the block
+	
+
+		// Verify the signed winning hash 
+		byte[] signedWinningHash = blockRecord.getSignedWinningHash(); // Get the block's signed winning hash
+		int verficationProcess = Integer.valueOf(blockRecord.getVerificationProcessID()); // Get the process number who mined the block
+		PublicKey verficationProcessKey = Key.getPublicKey(verficationProcess); // Get the public key of the process who created the block
+		String winningHash = blockRecord.getWinningHash(); // Get the winningHash of the block
+		boolean verifiedSignedHash = Key.verifySignedDocument(verficationProcessKey, signedWinningHash, winningHash); // Verify the signed winningHash was signed by the process who mined the block
+	
+		
+
+		// Verify the hash actually meets the requirement when reconstructed from scratch
+		String randomSeed = blockRecord.getRandomSeed(); // Get random seed
+		String json = "[" + Blockchain.blockchain + "]"; // Convert blockchain string to json array string
+		Gson gson2 = new Gson(); // Create Gson object
+		BlockRecord[] arr = gson2.fromJson(json, BlockRecord[].class); // Convert blockchain json array into array of block records
+		String previousWinningHash = arr[0].getWinningHash(); // Get the previous winning hash that's needed to recompute the winning hash
+		String newHash = blockRecord.generateBlockHash(randomSeed, previousWinningHash); // Generate new block hash
+		boolean verifiedNewHash = isWinningHash(newHash.substring(0,4)); // Verify new hash (See if it actually does produce a winning result)
+
+		boolean equivalentHash = newHash.equals(winningHash); // See if reconstructed winning hash equals the actual block's winning hash 
+
+		boolean verifiedBlock = verifiedSignedBlockID && verifiedSignedHash && verifiedNewHash && equivalentHash; // Determine if all verification conditions are met
+		
+		return verifiedBlock; 
 	}
 
 	public void run(){
     	try{
-
     		// Read in the new proposed unverified block
       		BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
 			String data = "";
@@ -737,7 +783,7 @@ class Blockchain {
 		new Thread(new BlockchainServer()).start(); // Start a thread to process incoming new blockchains
 		try{Thread.sleep(2000);}catch(Exception e){} // Wait for servers to start.
 		new Blockchain().Multicast(); // Multicast some new unverified blocks out to all servers as data
-		try{Thread.sleep(5000);}catch(Exception e){} // Wait for multicast to fill incoming queue for our example.
+		try{Thread.sleep(2000);}catch(Exception e){} // Wait for multicast to fill incoming queue for our example.
 		new Thread(new UnverifiedBlockConsumer(queue)).start(); // Start a thread to process the unverified blocks in the queue
 	}
 

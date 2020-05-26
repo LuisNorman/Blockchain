@@ -15,7 +15,7 @@ tell application "Terminal.app"
 
    delay 0.1
    
-   do script "cd /Users/luis/Desktop/DePaul/DistributedSystems/Assignment3/Blockchain && java -cp \".:gson-2.8.2.jar\" Blockchain 1" in front window
+   do script "cd /Users/luis/Desktop/DePaul/DistributedSystems/Assignment3/Blockchain && javac -cp \"gson-2.8.2.jar\" Blockchain.java && java -cp \".:gson-2.8.2.jar\" Blockchain 1" in front window
 
    delay 0.1
 
@@ -23,6 +23,6 @@ tell application "Terminal.app"
 
    delay 0.1
 
-   do script "cd /Users/luis/Desktop/DePaul/DistributedSystems/Assignment3/Blockchain && java -cp \".:gson-2.8.2.jar\" Blockchain 2" in front window
+   do script "cd /Users/luis/Desktop/DePaul/DistributedSystems/Assignment3/Blockchain && javac -cp \"gson-2.8.2.jar\" Blockchain.java && java -cp \".:gson-2.8.2.jar\" Blockchain 2" in front window
 
 end tell

@@ -566,7 +566,7 @@ class UnverifiedBlockConsumer implements Runnable {
     		Commands t1 = new Commands();
     		t1.start();
       		while(true){ // Continuously loop, checking the blockchain active state to perform work
-      			Thread.sleep(500); // Check every half second if blockchain status changed while active staus is false 
+      			Thread.sleep(1000); // Check every half second if blockchain status changed while active staus is false 
       			while(Blockchain.active) { // // Retreive block record from the unverified  queue. Do the work to solve. Mulitcast new blockchain
       				if (queue.size() == 0) { t1.openDisplay(); } // display commands when queue is empty and blockchain is active
       				blockRecord = queue.take(); // Remove oldest block from the queue
@@ -576,7 +576,7 @@ class UnverifiedBlockConsumer implements Runnable {
 					int originalBlockchainLength = blockchainArray.length;
 					String previousWinningHash = blockchainArray[0].getWinningHash();
 
-					System.out.println("Consumer got unverified: " + blockRecord.toString()+"\n");
+					System.out.println("Consumer got unverified block: " + blockRecord.toString2()+"\n");
 
 					// Get the blockchain length to see if it has been modified (a block was recently added)
 
@@ -587,7 +587,7 @@ class UnverifiedBlockConsumer implements Runnable {
 					for(int i=0; i < 100; i++){ // add time constraint on how long the puzzle can take at max
 						// Check if block was added or blockchain was modified
 						if (isRecentlyAdded(blockRecord)) { // Check if this block record was recently added
-							System.out.println("This block was recently solved. Get a new block record.\n");
+							System.out.println("The unverified block you were working on was recently solved. Get a new block record.\n");
 							break; // Start over in the while loop with a new block record
 						}
 
@@ -665,7 +665,7 @@ class Puzzle {
 			int decimal = Integer.parseInt(hash, 16);
 			System.out.println("Guess: Hash = " + hash + " ----- Decimal = " + decimal);
 			if (decimal < 7500) {
-				System.out.println("\nWinner");
+				System.out.println("\nYou won! You have mined the block.");
 				return true;
 			}
 			return false;

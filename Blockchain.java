@@ -144,6 +144,8 @@ class BlockRecord{
 
 	public String toString() {return BlockNum + " " + TimeStamp + " " + Fname + " " + Lname + " " + DOB + " " + SSNum + " " + Diag +  " " + Rx + " " + Treat;}
   	
+  	public String toString2() {return TimeStamp + " " + Fname + " " + Lname + " " + DOB + " " + SSNum + " " + Diag +  " " + Rx + " " + Treat;}
+  	
 	// Method that generates the block's hash. Paramaters random seed and previousWinningHash are passed instead
 	// instead of inserted into the block's object fields to avoid modifying the block's data while it may be getting verified.
   	public String generateBlockHash(String randomSeed, String previousWinningHash) throws NoSuchAlgorithmException {
@@ -176,6 +178,7 @@ class Key {
 	static PublicKey publicKey; // Public key of this process
 
 	static HashMap<Integer, PublicKey> publicKeys = new HashMap<>(); // Map to hold all peers public key's
+	static HashMap<Integer, PublicKey> publicKeysBackup = new HashMap<>(); // Backup hashmap b/c maps aren't thread safe and gets rehashed causing some returns to come back null. Create a backup map to go to incase of map error. Thanks to https://stackoverflow.com/questions/60032742/verify-throws-java-security-invalidkeyexception-null
 
 	public void setKeys() throws NoSuchAlgorithmException {
 		KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
@@ -202,12 +205,22 @@ class Key {
 		publicKeys.put(pnum, publicKey);
 	}
 
+	// Method to get the public key of specific network peers
+	public static PublicKey getPublicKeyBackup(int pnum) {
+		return publicKeysBackup.get(pnum);
+	}
+
+	// Method to set the public of specific network peers
+	public static void addPublicKeyBackup(int pnum, PublicKey publicKey) {
+		publicKeysBackup.put(pnum, publicKey);
+	}
+
+
 	// Method to sign document. Thanks to https://www.tutorialspoint.com/java_cryptography/java_cryptography_verifying_signature.htm
 	public static byte[] signDocument(String documentToSign) throws Exception {
         // Init signature using the instance's private key
         Signature signature = Signature.getInstance("SHA256withRSA"); // Create signature object using SHA256 w RSA
-        try {signature.initSign(Key.privateKey);} 
-        catch (Exception ex) {System.out.println(ex);}
+        signature.initSign(Key.privateKey);
         signature.update(documentToSign.getBytes()); // Insert the message into the signature
         byte[] signedDocument = signature.sign(); // Sign the message
 
@@ -216,12 +229,16 @@ class Key {
 
     // Method to verify signed document
     public static Boolean verifySignedDocument(PublicKey publicKey, byte[] signedDocument, String documentToVerify) throws Exception {
-        Signature signature = Signature.getInstance("SHA256withRSA"); // Create signature object using SHA256 w RSA
-        signature.initVerify(publicKey); // Init the signature with the public key 
-        signature.update(documentToVerify.getBytes()); // Feed the documents to the signature object for verification
-        boolean isCorrect = signature.verify(signedDocument); // Verify that the public key holder signed this document
+        try {
+        	// System.out.println("Should be here: " + publicKey);
+	        Signature signature = Signature.getInstance("SHA256withRSA"); // Create signature object using SHA256 w RSA
+	        signature.initVerify(publicKey); // Init the signature with the public key 
+	        signature.update(documentToVerify.getBytes()); // Feed the documents to the signature object for verification
+	        boolean isCorrect = signature.verify(signedDocument); // Verify that the public key holder signed this document
 
-        return isCorrect;
+	        return isCorrect;
+	    }
+	    catch(Exception ex) {System.out.println("Error trying to verify signed document: " + ex); return false;}
     }
 }
 
@@ -394,6 +411,8 @@ class PublicKeyWorker extends Thread {
 				KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 				PublicKey realPublicKey = keyFactory.generatePublic(x509KeySpec);
 				Key.addPublicKey(pnum, realPublicKey);
+				Key.addPublicKeyBackup(pnum, realPublicKey);
+				// System.out.println("Added public key for pnum: " +pnum + " " + realPublicKey);
 			}
 			catch(Exception ex){
 				System.out.println("Didn't add public key: "+ex);
@@ -460,7 +479,7 @@ class UnverifiedBlockServer implements Runnable {
 
 		    	// Put each block in the block array in the unverified queue
 		    	for (int i = 0; i < arr.length; i++) { // Loop block records json array, create a block record from each block record json object, and insert it into queue
-					System.out.println("Put in priority queue: " + arr[i].toString() + "\n"); 
+					System.out.println("Put in priority queue: " + arr[i].toString2() + "\n"); 
 					queue.put(arr[i]); // Put block record in priority queue (wait until there is space if full or free if busy)
 			    }
 				sock.close(); // close socket connection
@@ -527,15 +546,12 @@ class UnverifiedBlockConsumer implements Runnable {
       				if (queue.size() == 0) { t1.openDisplay(); } // display commands when queue is empty and blockchain is active
       				blockRecord = queue.take(); // Remove oldest block from the queue
       				if (t1.displayCommands) { t1.closeDisplay();}// Stop display commands thread when work has been added to the queue
-			    	System.out.println("Got new item");	
-			    	// Get the previous block record's winning hash value
-			  //   	String json = "[" + Blockchain.blockchain + "]";
-					// Gson gson2 = new Gson();
+			    	System.out.println("Retrieved new item...\n");	
 					BlockRecord[] blockchainArray = Blockchain.getBlockchainArray();
 					int originalBlockchainLength = blockchainArray.length;
 					String previousWinningHash = blockchainArray[0].getWinningHash();
 
-					System.out.println("Consumer got unverified: " + blockRecord.toString()+"\n");
+					System.out.println("Consumer got unverified: " + blockRecord.toString2()+"\n");
 
 					// Get the blockchain length to see if it has been modified (a block was recently added)
 
@@ -576,6 +592,9 @@ class UnverifiedBlockConsumer implements Runnable {
 
 						try{Thread.sleep(500);}catch(Exception e){e.printStackTrace();}
 					}
+					
+					
+					
 		
 					if(isWinningHash && !isRecentlyAdded(blockRecord)){ // Check if the block id has not been recently inserted in the blockchain
 						blockRecord.setRandomSeed(randomSeed); // Set the block's random string
@@ -590,7 +609,7 @@ class UnverifiedBlockConsumer implements Runnable {
 						LocalDateTime now = LocalDateTime.now();  
 					  	
 					  	// Display new  proposed block
-					  	fakeVerifiedBlock = "\n-[Block ID: " + blockRecord.getBlockID() + " verified by P" + Blockchain.PID + " at time " + dtf.format(now) + "]\n";
+					  	fakeVerifiedBlock = "\n-[Block Num: " + blockRecord.getBlockNum() + " verified by P" + Blockchain.PID + " at time " + dtf.format(now) + "]\n";
 					  	System.out.println(fakeVerifiedBlock);
 
 						// Convert the block record (java) object into a json object and send to peers
@@ -642,33 +661,42 @@ class BlockchainWorker extends Thread {
 
 	// Method to verify the signed block id
 	public boolean verifiedSignedBlockID(BlockRecord blockRecord) throws Exception {
-		
+		String newHash = null;
+		String winningHash = null;
+
 		// Verify block id 
-		byte[] signedBlockID = blockRecord.getSignedBlockID(); // Get the block's signed block id
-		int creationProcessID = Integer.valueOf(blockRecord.getCreationProcessID()); // Get the process number who created the block
-		PublicKey creationProcessKey = Key.getPublicKey(creationProcessID); // Get the public key of the process who created the block
-		String blockID = blockRecord.getBlockID(); // Get the block id of the block
-		boolean verifiedSignedBlockID = Key.verifySignedDocument(creationProcessKey, signedBlockID, blockID); // Verify the signed block id was signed by the process who created the block
-		if (!verifiedSignedBlockID) return false; // Don't waste time, return false as soon as something can't be verified
-
-		// Verify the signed winning hash 
-		byte[] signedWinningHash = blockRecord.getSignedWinningHash(); // Get the block's signed winning hash
-		int verficationProcess = Integer.valueOf(blockRecord.getVerificationProcessID()); // Get the process number who mined the block
-		PublicKey verficationProcessKey = Key.getPublicKey(verficationProcess); // Get the public key of the process who created the block
-		String winningHash = blockRecord.getWinningHash(); // Get the winningHash of the block
-		boolean verifiedSignedHash = Key.verifySignedDocument(verficationProcessKey, signedWinningHash, winningHash); // Verify the signed winningHash was signed by the process who mined the block
-		if (!verifiedSignedHash) return false; // Don't waste time, return false as soon as something can't be verified
-
-
-		// Verify the hash actually meets the requirement when reconstructed from scratch
-		String randomSeed = blockRecord.getRandomSeed(); // Get random seed
-		String json = "[" + Blockchain.blockchain + "]"; // Convert blockchain string to json array string
-		Gson gson2 = new Gson(); // Create Gson object
-		BlockRecord[] arr = gson2.fromJson(json, BlockRecord[].class); // Convert blockchain json array into array of block records
-		String previousWinningHash = arr[0].getWinningHash(); // Get the previous winning hash that's needed to recompute the winning hash
-		String newHash = blockRecord.generateBlockHash(randomSeed, previousWinningHash); // Generate new block hash
-		boolean verifiedNewHash = Puzzle.isWinningHash(newHash.substring(0,4), false); // Verify new hash (See if it actually does produce a winning result)
-		if (!verifiedNewHash) return false; // Don't waste time, return false as soon as something can't be verified
+		try {
+			byte[] signedBlockID = blockRecord.getSignedBlockID(); // Get the block's signed block id
+			int creationProcessID = Integer.valueOf(blockRecord.getCreationProcessID()); // Get the process number who created the block
+			PublicKey creationProcessKey = Key.getPublicKey(creationProcessID); // Get the public key of the process who created the block
+			if (creationProcessKey == null) creationProcessKey = Key.getPublicKeyBackup(creationProcessID);
+			// System.out.println("CreationProcessPublicKey: " + creationProcessKey);
+			String blockID = blockRecord.getBlockID(); // Get the block id of the block
+			boolean verifiedSignedBlockID = Key.verifySignedDocument(creationProcessKey, signedBlockID, blockID); // Verify the signed block id was signed by the process who created the block
+			if (!verifiedSignedBlockID) return false; // Don't waste time, return false as soon as something can't be verified
+		}
+		catch(Exception ex) {System.out.println("Error attempting to verify block id. " + ex); return false;}
+		try{
+			// Verify the signed winning hash 
+			byte[] signedWinningHash = blockRecord.getSignedWinningHash(); // Get the block's signed winning hash
+			int verficationProcess = Integer.valueOf(blockRecord.getVerificationProcessID()); // Get the process number who mined the block
+			PublicKey verficationProcessKey = Key.getPublicKey(verficationProcess); // Get the public key of the process who created the block
+			if (verficationProcessKey == null) verficationProcessKey = Key.getPublicKeyBackup(verficationProcess);
+			winningHash = blockRecord.getWinningHash(); // Get the winningHash of the block
+			boolean verifiedSignedHash = Key.verifySignedDocument(verficationProcessKey, signedWinningHash, winningHash); // Verify the signed winningHash was signed by the process who mined the block
+			if (!verifiedSignedHash) return false; // Don't waste time, return false as soon as something can't be verified
+		}
+		catch(Exception ex) {System.out.println("Error attempting to verify signedWinningHash. " + ex); return false;}
+		try{
+			// Verify the hash actually meets the requirement when reconstructed from scratch
+			String randomSeed = blockRecord.getRandomSeed(); // Get random seed
+			BlockRecord[] arr = Blockchain.getBlockchainArray(); // Convert blockchain json array into array of block records
+			String previousWinningHash = arr[0].getWinningHash(); // Get the previous winning hash that's needed to recompute the winning hash
+			newHash = blockRecord.generateBlockHash(randomSeed, previousWinningHash); // Generate new block hash
+			boolean verifiedNewHash = Puzzle.isWinningHash(newHash.substring(0,4), false); // Verify new hash (See if it actually does produce a winning result)
+			if (!verifiedNewHash) return false; // Don't waste time, return false as soon as something can't be verified
+		}
+		catch(Exception ex) {System.out.println("Error attempting to verify reconstructed hash. " + ex); return false;}
 
 		boolean equivalentHash =  newHash.equals(winningHash);// See if reconstructed winning hash equals the actual block's winning hash 
 
@@ -791,7 +819,7 @@ class Commands extends Thread {
 	public void run() {
 
 		while (true) {
-			try {Thread.sleep(2000);} catch (Exception ex) {}
+			try {Thread.sleep(1000);} catch (Exception ex) {}
 			while(displayCommands) {
 
 	    		/* Display the command options */
@@ -801,9 +829,6 @@ class Commands extends Thread {
 				System.out.println("Enter \"V\" to verify the entire blockchain and report errors if any.");
 				System.out.println("Enter \"L\" to list each block number, timestamp, name of patient, diagnosis, etc. for each record.\n");
 			
-				// Read in the user input (requested command)
-
-
 				// Scanner scanner = new Scanner(System.in); // Create scanner object
 				BufferedReader bufferReader = new BufferedReader(new InputStreamReader(System.in));
 				
@@ -896,8 +921,6 @@ class Commands extends Thread {
 		int iDIAG = 4;
 		int iTREAT = 5;
 		int iRX = 6;
-
-
 
     	try {
 
@@ -1088,6 +1111,7 @@ class Blockchain {
 		final PriorityBlockingQueue<BlockRecord> queue = new PriorityBlockingQueue<>(4, BlockTSComparator); // Create a blocking priority queue to store and retrieve unverified blocks concurrently 
 		new Ports().setPorts(); // Set the ports according to the rules assigned 
 		new Key().setKeys(); // Set the public and private key
+		try{Thread.sleep(2000);}catch(Exception e){} // Wait for keys to be generated.
 		new Thread(new PublicKeyServer()).start(); // Start a thread to read and process incoming public keys
 		new Thread(new UnverifiedBlockServer(queue)).start(); // Start a thread to process incoming unverified blocks
 		new Thread(new BlockchainServer()).start(); // Start a thread to process incoming new blockchains
